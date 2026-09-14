@@ -275,7 +275,7 @@ private fun YouTubeMusicPlayer(url: String, onBack: () -> Unit) {
         }
 
         AndroidView(
-            Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             factory = { context ->
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
@@ -292,7 +292,11 @@ private fun YouTubeMusicPlayer(url: String, onBack: () -> Unit) {
                     loadUrl(url)
                 }
             },
-            update = { webView -> if (webView.url != url) webView.loadUrl(url) }
+            update = { webView ->
+                if (webView.url != url) {
+                    webView.loadUrl(url)
+                }
+            }
         )
     }
 }
