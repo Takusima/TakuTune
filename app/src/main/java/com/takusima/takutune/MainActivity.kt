@@ -23,21 +23,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.takusima.takutune.core.database.TakuTuneDatabase
 import com.takusima.takutune.core.model.Track
+import com.takusima.takutune.core.presentation.TakuTuneViewModel
 import com.takusima.takutune.core.preferences.AppearanceSettings
 import com.takusima.takutune.core.preferences.SettingsStore
-import com.takusima.takutune.library.LocalLibraryRepository
-import com.takusima.takutune.library.LocalMusicScanner
 import com.takusima.takutune.playback.PlaybackController
 import com.takusima.takutune.playback.PlaybackState
 import com.takusima.takutune.theme.TakuTuneTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private val SurfaceColor = Color(0xFF15101C)
 private val Elevated = Color(0xFF21182C)
@@ -45,77 +40,73 @@ private val Purple = Color(0xFFB36BFF)
 private val SecondaryText = Color(0xFFAAA0B4)
 
 class MainActivity : ComponentActivity() {
-    private lateinit var playback: PlaybackController
-    private lateinit var library: LocalLibraryRepository
-    private lateinit var settings: SettingsStore
-    private var tracks by mutableStateOf<List<Track>>(emptyList())
 
-    private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) scan() }
+    private var activeViewModel: TakuTuneViewModel? = null
 
-    private fun scan() {
-        lifecycleScope.launch {
-            val found = withContext(Dispatchers.IO) { LocalMusicScanner(contentResolver).scan() }
-            withContext(Dispatchers.IO) { library.replaceTracks(found) }
-        }
+    private val permission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) activeViewModel?.scan()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        library = LocalLibraryRepository(TakuTuneDatabase.get(this).dao())
-        settings = SettingsStore(this)
-        playback = PlaybackController(this)
 
-        lifecycleScope.launch {
-            library.observeTracks().collectLatest { tracks = it }
-        }
-
-        if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.READ_MEDIA_AUDIO)
-        else permission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        val database = TakuTuneDatabase.get(this)
+        val settings = SettingsStore(this)
+        val playback = PlaybackController(this)
+        val factory = TakuTuneViewModel.Factory(
+            contentResolver = contentResolver,
+            database = database,
+            settings = settings,
+            playbackController = playback
+        )
 
         setContent {
-            val playbackState by playback.state.collectAsState()
-            val appearance by settings.appearance.collectAsState(initial = AppearanceSettings())
-            val favoriteIds by library.observeFavoriteIds().collectAsState(initial = emptyList())
+            val viewModel: TakuTuneViewModel = viewModel(factory = factory)
+            activeViewModel = viewModel
 
-            LaunchedEffect(Unit) {
-                while (true) {
-                    delay(500)
-                    playback.refresh()
-                }
-            }
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            TakuTuneTheme(appearance) {
+            TakuTuneTheme(uiState.appearance) {
                 TakuTuneApp(
-                    tracks = tracks,
-                    playback = playbackState,
-                    appearance = appearance,
-                    favoriteIds = favoriteIds.toSet(),
-                    onPlay = { track, index ->
-                        playback.playQueue(tracks, index)
-                        lifecycleScope.launch(Dispatchers.IO) { library.addHistory(track) }
+                    tracks = uiState.tracks,
+                    playback = uiState.playback,
+                    appearance = uiState.appearance,
+                    favoriteIds = uiState.favoriteIds,
+                    onPlay = { track, _ -> viewModel.play(track) },
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onToggle = viewModel::togglePlayback,
+                    onNext = viewModel::next,
+                    onPrevious = viewModel::previous,
+                    onSeek = viewModel::seekTo,
+                    onShuffle = { viewModel.setShuffle(!uiState.playback.shuffle) },
+                    onRepeat = {
+                        viewModel.setRepeat(
+                            if (uiState.playback.repeatMode == 0) {
+                                androidx.media3.common.Player.REPEAT_MODE_ALL
+                            } else {
+                                androidx.media3.common.Player.REPEAT_MODE_OFF
+                            }
+                        )
                     },
-                    onToggleFavorite = { track ->
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            library.toggleFavorite(track, track.id in favoriteIds)
-                        }
-                    },
-                    onToggle = playback::toggle,
-                    onNext = playback::next,
-                    onPrevious = playback::previous,
-                    onSeek = playback::seekTo,
-                    onShuffle = { playback.setShuffle(!playbackState.shuffle) },
-                    onRepeat = { playback.setRepeat(if (playbackState.repeatMode == 0) 1 else 0) },
-                    onTheme = { lifecycleScope.launch { settings.setTheme(it) } },
-                    onAmoled = { lifecycleScope.launch { settings.setAmoled(it) } },
-                    onDynamic = { lifecycleScope.launch { settings.setDynamicColor(it) } },
-                    onRefresh = ::scan
+                    onTheme = viewModel::setTheme,
+                    onAmoled = viewModel::setAmoled,
+                    onDynamic = viewModel::setDynamicColor,
+                    onRefresh = viewModel::scan
                 )
             }
+        }
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            permission.launch(Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            permission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
     override fun onDestroy() {
-        playback.release()
+        activeViewModel = null
         super.onDestroy()
     }
 }
