@@ -81,7 +81,7 @@ class TakuTuneViewModel(
         val index = tracks.indexOfFirst { it.id == track.id }
         if (index < 0) return
         playbackController.playQueue(tracks, index)
-        viewModelScope.launch(Dispatchers.IO) { library.addHistory(track.id) }
+        viewModelScope.launch(Dispatchers.IO) { library.addHistory(track) }
     }
 
     fun toggleFavorite(track: Track) {
