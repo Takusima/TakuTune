@@ -278,7 +278,7 @@ private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Tr
 
 @Composable
 private fun MiniPlayer(state: PlaybackState, open: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(18.dp)).background(Elevated).clickable(open).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(18.dp)).background(Elevated).clickable { open() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.MusicNote, null, tint = Purple, modifier = Modifier.size(30.dp))
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -294,7 +294,7 @@ private fun TrackRow(track: Track, favorite: Boolean, onPlay: () -> Unit, onFavo
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceColor).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(48.dp).clip(RoundedCornerShape(13.dp)).background(Elevated), contentAlignment = Alignment.Center) { Icon(Icons.Default.MusicNote, null, tint = Purple) }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).clickable(onClick = onPlay)) {
+        Column(Modifier.weight(1f).clickable { onPlay() }) {
             Text(track.title, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Text(track.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
         }
@@ -341,7 +341,7 @@ private fun EmptyCard(title: String, subtitle: String) {
 
 @Composable
 private fun SearchPill(onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor).clickable(onClick).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor).clickable { onClick() }.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.Search, null, tint = Purple)
         Spacer(Modifier.width(10.dp))
         Text("Песня, исполнитель, альбом", color = SecondaryText)
