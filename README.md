@@ -321,3 +321,38 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Unresolved build status**
 - This fix is committed to `main`.
 - A new GitHub Actions validation run is required; no claim of successful compilation is made before that run completes.
+
+
+### Technical changelog — 2026-10-03 — /tt-core /compile-fix-ksp-agp9
+
+**Author:** Takusima
+
+**Build failure**
+- GitHub Actions run #60 (`37152692980`) failed during project configuration.
+- Failure location: generated KSP source integration under `:app`.
+- Error: `Using kotlin.sourceSets DSL to add Kotlin sources is not allowed with built-in Kotlin.`
+- KSP generated `build/generated/ksp/debug/kotlin` and `build/generated/ksp/debug/java`, and AGP 9 built-in Kotlin rejected the KSP source-set registration.
+
+**Root cause**
+- TakuTune uses Room through KSP.
+- The selected KSP/Room toolchain still registers generated sources through the legacy Kotlin source-set path when AGP built-in Kotlin is enabled.
+- The repository is staying on Kotlin 2.2.10 / KSP 2.2.10-2.0.2 for this migration block.
+
+**Resolution**
+- Disabled AGP built-in Kotlin with `android.builtInKotlin=false`.
+- Disabled the new Android DSL with `android.newDsl=false`.
+- Restored the explicit `org.jetbrains.kotlin.android` plugin.
+- Kept the Compose compiler plugin and KSP unchanged.
+- This returns the project to the classic Android Kotlin + KSP configuration required by the current Room/KSP setup.
+- No HTML, WebView or hybrid technology was introduced.
+
+**Changed files**
+- `app/build.gradle.kts`: line 3 — restored `org.jetbrains.kotlin.android`.
+- `build.gradle.kts`: line 2 — restored root Kotlin Android plugin declaration.
+- `gradle.properties`: lines 3–4 — disabled AGP built-in Kotlin/new DSL for KSP compatibility.
+- `README.md`: appended this complete build-failure record.
+
+**Unresolved build status**
+- Configuration fix committed to `main`.
+- GitHub Actions automatically validates the complete fix block on push.
+- Compilation is not declared successful until that run reports success.
