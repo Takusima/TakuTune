@@ -124,3 +124,37 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Что изменилось**
 - TakuTune впервые получил сквозной путь: MediaStore → Track → MediaController → PlaybackService → ExoPlayer.
 - Следующий технический этап: реактивное состояние плеера, очередь, предыдущий/следующий трек, play/pause в UI и Room.
+
+
+### 2026-10-03 — Stage 4: real library, queue and persistent data
+
+**Что добавлено**
+- Room database: tracks, favorites, history, playlists, playlist tracks и blocked tracks.
+- LocalLibraryRepository для хранения локальной медиатеки и истории.
+- DataStore SettingsStore для темы, акцента и AMOLED.
+- PlaybackState как единое реактивное состояние плеера.
+- PlaybackController теперь поддерживает очередь, play/pause, next/previous, seek, shuffle и repeat.
+- Главный экран, поиск и медиатека используют реальные данные MediaStore/Room.
+- Полноэкранный плеер получил реальные play/pause, previous/next и seek.
+- Добавлены разрешения уведомлений и управления аудио.
+- Media3 обновлён до 1.11.1 — это актуальная стабильная ветка Media3 на текущий момент. (Проверено по Android Developers.)
+
+**Что сломалось**
+- Старый MainActivity был одним большим UI-прототипом и не имел настоящего persistent data layer.
+- Отдельный PlayerManager уже был удалён на предыдущем этапе, но UI всё ещё не имел реактивного состояния очереди.
+- Первая версия SettingsStore использовала запись через DataStore без явного edit API.
+
+**Как исправлено**
+- Добавлены отдельные database/preferences/repository/playback классы.
+- MainActivity теперь связывает данные, playback и Compose UI.
+- SettingsStore переведён на DataStore.edit.
+- Очередь и состояние плеера централизованы в PlaybackController.
+
+**Где сломалось**
+- app/src/main/java/com/takusima/takutune/MainActivity.kt
+- app/src/main/java/com/takusima/takutune/playback/PlaybackController.kt
+- app/src/main/java/com/takusima/takutune/core/preferences/SettingsStore.kt
+
+**Что изменилось**
+- TakuTune больше не является только UI-макетом: локальная библиотека сохраняется в Room, настройки — в DataStore, а воспроизведение управляется MediaSession/Media3.
+- YouTube/Spotify/VK, lyrics, EQ, crossfade и глубокая кастомизация пока остаются отдельными следующими подсистемами; они не подменяются фиктивными кнопками.
