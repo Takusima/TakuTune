@@ -14,6 +14,7 @@ class LocalLibraryRepository(private val dao: TakuTuneDao) {
     fun observeTracks(): Flow<List<Track>> = dao.observeTracks().map { it.map(::toTrack) }
 
     fun observeFavoriteIds(): Flow<List<Long>> = dao.observeFavorites()
+    fun observeBlockedIds(): Flow<List<Long>> = dao.observeBlocked()
     fun observeHistory(): Flow<List<Long>> = dao.observeHistory().map { it.map(HistoryEntity::trackId) }
     fun observePlaylists(): Flow<List<PlaylistEntity>> = dao.observePlaylists()
 
@@ -25,6 +26,11 @@ class LocalLibraryRepository(private val dao: TakuTuneDao) {
     suspend fun toggleFavorite(track: Track, currentlyFavorite: Boolean) {
         if (currentlyFavorite) dao.removeFavorite(track.id)
         else dao.addFavorite(FavoriteEntity(track.id))
+    }
+
+    suspend fun toggleBlocked(track: Track, currentlyBlocked: Boolean) {
+        if (currentlyBlocked) dao.unblockTrack(track.id)
+        else dao.blockTrack(com.takusima.takutune.core.database.BlockedTrackEntity(track.id))
     }
 
     suspend fun addHistory(track: Track) = dao.addHistory(
