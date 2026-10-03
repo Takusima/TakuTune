@@ -415,3 +415,36 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 
 **Unresolved**
 - No additional source-level mismatch was found in the audited ViewModel/Repository/DAO chain. CI remains the final authority for any remaining compiler or packaging errors.
+
+
+### Technical changelog — 2026-10-04 — /tt-ui /settings-real /system-back
+
+**Author:** Takusima
+
+**What was changed**
+- Reworked the Settings screen so the controls that are exposed in the UI are connected to the existing DataStore/ViewModel APIs instead of being decorative cards.
+- Added working accent-color presets backed by the existing `AppearanceSettings.accent` value.
+- Added working animation-speed control backed by the existing `AppearanceSettings.animationScale` value.
+- Kept AMOLED and Dynamic Color controls and wired the full settings callback chain from `MainActivity` to `TakuTuneViewModel`.
+- Changed theme resolution so `System` follows the actual Android system light/dark mode instead of always behaving as dark mode.
+- Dynamic Color now uses Android system dynamic color on Android 12+ when enabled; explicit accent color remains active when Dynamic Color is disabled.
+- Removed the in-app top-left back/close button from the full player.
+- Added Compose system BackHandler: when the full player or any secondary tab is open, the phone's physical/system Back action returns to the Home screen; on Home it keeps the normal Activity exit behavior. Android documents BackHandler as the Compose API for intercepting system back navigation. citeturn1search0turn1search2
+
+**Changed files and exact line ranges**
+- `app/src/main/java/com/takusima/takutune/MainActivity.kt`: line 7 — added `BackHandler` import; lines 91–99 — passed accent/animation callbacks; lines 132–144 — wired settings and system-back state handling; lines 156–313 — replaced non-functional Settings cards with real theme/AMOLED/dynamic-color/accent/animation/music controls; lines 314–319 — removed the full-player in-app back button and its callback parameter.
+- `app/src/main/java/com/takusima/takutune/theme/TakuTuneTheme.kt`: lines 1–58 — rebuilt theme selection around system theme detection, stored accent color, AMOLED background and Android 12+ dynamic color.
+- `app/src/main/java/com/takusima/takutune/core/preferences/SettingsStore.kt`: no source change required; existing DataStore keys already supported accent and animation scale.
+- `app/src/main/java/com/takusima/takutune/core/presentation/TakuTuneViewModel.kt`: no source change required; existing setters already exposed accent and animation scale.
+- `README.md`: appended this technical changelog.
+
+**Build failure status**
+- No new compiler output has been observed for this exact UI block yet.
+- The previous known CI failure was fixed before this block; this block must still be validated by GitHub Actions.
+
+**Resolution**
+- The implementation uses the existing native Compose/DataStore architecture; no HTML/WebView layer was introduced.
+- No fake network/audio provider was added. Local music remains the real active source.
+
+**Unresolved**
+- CI validation is pending for this exact commit sequence.
