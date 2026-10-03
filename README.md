@@ -158,3 +158,44 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Что изменилось**
 - TakuTune больше не является только UI-макетом: локальная библиотека сохраняется в Room, настройки — в DataStore, а воспроизведение управляется MediaSession/Media3.
 - YouTube/Spotify/VK, lyrics, EQ, crossfade и глубокая кастомизация пока остаются отдельными следующими подсистемами; они не подменяются фиктивными кнопками.
+
+
+### 2026-10-03 — Stage 5: large functional architecture block
+
+**Что добавлено**
+- Сформирован единый слой моделей Artist, Album, Playlist, PlaybackSource.
+- Добавлен MusicSource для единого контракта Local / YouTube / Spotify / VK.
+- Добавлен рабочий LocalSource и SourceRegistry; сетевые источники пока намеренно не притворяются реализованными.
+- PlaybackController расширен реактивным состоянием shuffle/repeat и периодическим обновлением позиции.
+- Room-библиотека расширена наблюдением избранного, истории и плейлистов.
+- Реализовано добавление/удаление трека из избранного.
+- Настройки внешнего вида подключены к DataStore: System/Dark/Light, AMOLED, Dynamic Color.
+- Тема вынесена в отдельный TakuTuneTheme.
+- Полноэкранный плеер получил избранное, shuffle, repeat, previous/next, seek и реальное play/pause.
+- Основные экраны используют реальную локальную медиатеку вместо декоративных списков.
+- На время большого блока feature-изменений автосборка на push была отключена, чтобы не создавать десятки бесполезных GitHub Actions запусков. После завершения блока push-trigger возвращается.
+
+**Что сломалось**
+- После расширения PlaybackState UI требовал обновлять позицию даже без событий Media3.
+- Первичная архитектура не имела общего контракта для будущих музыкальных источников.
+- Старые версии Room/DataStore были не актуальны для текущего стабильного AndroidX.
+
+**Как исправлено**
+- Добавлен PlaybackController.refresh() и UI-тикер раз в 500 мс.
+- Создан MusicSource + LocalSource + SourceRegistry.
+- Room обновлён до 2.8.5, DataStore до 1.2.1; Media3 остаётся 1.11.1. Эти версии соответствуют опубликованным стабильным версиям AndroidX на сентябрь 2026 года.
+
+**Где произошло**
+- app/src/main/java/com/takusima/takutune/MainActivity.kt
+- app/src/main/java/com/takusima/takutune/playback/PlaybackController.kt
+- app/src/main/java/com/takusima/takutune/playback/PlaybackState.kt
+- app/src/main/java/com/takusima/takutune/core/database/TakuTuneDao.kt
+- app/src/main/java/com/takusima/takutune/library/LocalLibraryRepository.kt
+- app/src/main/java/com/takusima/takutune/core/preferences/SettingsStore.kt
+- app/src/main/java/com/takusima/takutune/theme/TakuTuneTheme.kt
+- app/src/main/java/com/takusima/takutune/sources/*
+- app/build.gradle.kts
+
+**Что изменилось**
+- Теперь это уже не набор экранов: есть persistent data layer, единый playback state, очередь, избранное, настройки и расширяемая система источников.
+- YouTube/Spotify/VK пока остаются реальными следующими интеграциями, а не фальшивыми кнопками.
