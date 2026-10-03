@@ -11,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,16 +26,19 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.takusima.takutune.core.database.TakuTuneDatabase
 import com.takusima.takutune.core.model.Track
+import com.takusima.takutune.core.preferences.AppearanceSettings
+import com.takusima.takutune.core.preferences.SettingsStore
 import com.takusima.takutune.library.LocalLibraryRepository
 import com.takusima.takutune.library.LocalMusicScanner
 import com.takusima.takutune.playback.PlaybackController
 import com.takusima.takutune.playback.PlaybackState
+import com.takusima.takutune.theme.TakuTuneTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val Background = Color(0xFF09070D)
 private val SurfaceColor = Color(0xFF15101C)
 private val Elevated = Color(0xFF21182C)
 private val Purple = Color(0xFFB36BFF)
@@ -45,11 +47,10 @@ private val SecondaryText = Color(0xFFAAA0B4)
 class MainActivity : ComponentActivity() {
     private lateinit var playback: PlaybackController
     private lateinit var library: LocalLibraryRepository
+    private lateinit var settings: SettingsStore
     private var tracks by mutableStateOf<List<Track>>(emptyList())
 
-    private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) scan()
-    }
+    private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) scan() }
 
     private fun scan() {
         lifecycleScope.launch {
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         library = LocalLibraryRepository(TakuTuneDatabase.get(this).dao())
+        settings = SettingsStore(this)
         playback = PlaybackController(this)
 
         lifecycleScope.launch {
@@ -72,19 +74,43 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val playbackState by playback.state.collectAsState()
-            TakuTuneApp(
-                tracks = tracks,
-                playback = playbackState,
-                onPlay = { track, index ->
-                    playback.playQueue(tracks, index)
-                    lifecycleScope.launch(Dispatchers.IO) { library.addHistory(track) }
-                },
-                onToggle = playback::toggle,
-                onNext = playback::next,
-                onPrevious = playback::previous,
-                onSeek = playback::seekTo,
-                onRefresh = ::scan
-            )
+            val appearance by settings.appearance.collectAsState(initial = AppearanceSettings())
+            val favoriteIds by library.observeFavoriteIds().collectAsState(initial = emptyList())
+
+            LaunchedEffect(Unit) {
+                while (true) {
+                    delay(500)
+                    playback.refresh()
+                }
+            }
+
+            TakuTuneTheme(appearance) {
+                TakuTuneApp(
+                    tracks = tracks,
+                    playback = playbackState,
+                    appearance = appearance,
+                    favoriteIds = favoriteIds.toSet(),
+                    onPlay = { track, index ->
+                        playback.playQueue(tracks, index)
+                        lifecycleScope.launch(Dispatchers.IO) { library.addHistory(track) }
+                    },
+                    onToggleFavorite = { track ->
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            library.toggleFavorite(track, track.id in favoriteIds)
+                        }
+                    },
+                    onToggle = playback::toggle,
+                    onNext = playback::next,
+                    onPrevious = playback::previous,
+                    onSeek = playback::seekTo,
+                    onShuffle = { playback.setShuffle(!playbackState.shuffle) },
+                    onRepeat = { playback.setRepeat(if (playbackState.repeatMode == 0) 1 else 0) },
+                    onTheme = { lifecycleScope.launch { settings.setTheme(it) } },
+                    onAmoled = { lifecycleScope.launch { settings.setAmoled(it) } },
+                    onDynamic = { lifecycleScope.launch { settings.setDynamicColor(it) } },
+                    onRefresh = ::scan
+                )
+            }
         }
     }
 
@@ -98,41 +124,40 @@ class MainActivity : ComponentActivity() {
 private fun TakuTuneApp(
     tracks: List<Track>,
     playback: PlaybackState,
+    appearance: AppearanceSettings,
+    favoriteIds: Set<Long>,
     onPlay: (Track, Int) -> Unit,
+    onToggleFavorite: (Track) -> Unit,
     onToggle: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
+    onShuffle: () -> Unit,
+    onRepeat: () -> Unit,
+    onTheme: (String) -> Unit,
+    onAmoled: (Boolean) -> Unit,
+    onDynamic: (Boolean) -> Unit,
     onRefresh: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
     var playerOpen by remember { mutableStateOf(false) }
-
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Purple,
-            background = Background,
-            surface = SurfaceColor
-        )
-    ) {
-        Surface(Modifier.fillMaxSize(), color = Background) {
+    MaterialTheme {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     if (playerOpen && playback.current != null) {
-                        FullPlayer(playback, onToggle, onNext, onPrevious, onSeek) { playerOpen = false }
+                        FullPlayer(playback, favoriteIds, onToggleFavorite, onToggle, onNext, onPrevious, onSeek, onShuffle, onRepeat) { playerOpen = false }
                     } else {
                         when (tab) {
-                            0 -> Home(tracks, playback, onPlay, { tab = 1 }, onRefresh)
-                            1 -> Search(tracks, onPlay)
-                            2 -> Library(tracks, onPlay)
-                            else -> Settings()
+                            0 -> Home(tracks, playback, favoriteIds, onPlay, onToggleFavorite, { tab = 1 }, onRefresh)
+                            1 -> Search(tracks, favoriteIds, onPlay, onToggleFavorite)
+                            2 -> Library(tracks, favoriteIds, onPlay, onToggleFavorite)
+                            else -> SettingsScreen(appearance, onTheme, onAmoled, onDynamic)
                         }
                     }
                 }
                 if (!playerOpen) {
-                    if (playback.current != null) {
-                        MiniPlayer(playback) { playerOpen = true }
-                    }
+                    playback.current?.let { MiniPlayer(playback) { playerOpen = true } }
                     BottomBar(tab) { tab = it }
                 }
             }
@@ -141,121 +166,132 @@ private fun TakuTuneApp(
 }
 
 @Composable
-private fun Home(tracks: List<Track>, playback: PlaybackState, onPlay: (Track, Int) -> Unit, search: () -> Unit, refresh: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+private fun Home(tracks: List<Track>, playback: PlaybackState, favoriteIds: Set<Long>, onPlay: (Track, Int) -> Unit, onFavorite: (Track) -> Unit, search: () -> Unit, refresh: () -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Spacer(Modifier.height(24.dp))
-            Text("TakuTune", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            Text("TakuTune", color = MaterialTheme.colorScheme.onBackground, fontSize = 34.sp, fontWeight = FontWeight.Bold)
             Text("Твоя музыка. Твой интерфейс.", color = SecondaryText)
             Spacer(Modifier.height(14.dp))
             SearchPill(search)
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ActionCard("Избранное", Icons.Default.FavoriteBorder, Modifier.weight(1f))
-                ActionCard("Плейлисты", Icons.Default.QueueMusic, Modifier.weight(1f))
+                ActionCard("Избранное", Icons.Default.Favorite, Modifier.weight(1f))
+                ActionCard("Очередь", Icons.Default.QueueMusic, Modifier.weight(1f))
             }
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Локальная музыка", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("Локальная музыка", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 TextButton(refresh) { Text("Сканировать") }
             }
         }
-        if (tracks.isEmpty()) {
-            item { EmptyCard("Музыка не найдена", "Разреши доступ к аудио и запусти сканирование.") }
-        } else {
-            items(tracks.take(100), key = { it.id }) { track ->
-                TrackRow(track, tracks.indexOfFirst { it.id == track.id }) { onPlay(track, tracks.indexOf(track)) }
-            }
+        if (tracks.isEmpty()) item { EmptyCard("Музыка не найдена", "Разреши доступ к аудио и запусти сканирование.") }
+        else items(tracks.take(100), key = { it.id }) { track ->
+            TrackRow(track, track.id in favoriteIds, { onPlay(track, tracks.indexOf(track)) }, { onFavorite(track) })
         }
-        item { Spacer(Modifier.height(12.dp)) }
     }
 }
 
 @Composable
-private fun Search(tracks: List<Track>, onPlay: (Track, Int) -> Unit) {
+private fun Search(tracks: List<Track>, favoriteIds: Set<Long>, onPlay: (Track, Int) -> Unit, onFavorite: (Track) -> Unit) {
     var query by remember { mutableStateOf("") }
-    val result = remember(query, tracks) { tracks.filter { q -> query.isBlank() || q.title.contains(query, true) || q.artist.contains(query, true) || q.album.contains(query, true) } }
+    val result = remember(query, tracks) { tracks.filter { query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true) } }
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
         Spacer(Modifier.height(24.dp))
-        Text("Поиск", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Поиск", color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(14.dp))
         OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Песня, исполнитель, альбом") }, leadingIcon = { Icon(Icons.Default.Search, null) })
         Spacer(Modifier.height(12.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(result.take(100), key = { it.id }) { track -> TrackRow(track, result.indexOf(track)) { onPlay(track, tracks.indexOf(track)) } }
+            items(result.take(100), key = { it.id }) { track ->
+                TrackRow(track, track.id in favoriteIds, { onPlay(track, tracks.indexOf(track)) }, { onFavorite(track) })
+            }
         }
     }
 }
 
 @Composable
-private fun Library(tracks: List<Track>, onPlay: (Track, Int) -> Unit) {
+private fun Library(tracks: List<Track>, favoriteIds: Set<Long>, onPlay: (Track, Int) -> Unit, onFavorite: (Track) -> Unit) {
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
         item {
             Spacer(Modifier.height(24.dp))
-            Text("Медиатека", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("${tracks.size} треков", color = SecondaryText)
+            Text("Медиатека", color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("${tracks.size} треков • ${favoriteIds.size} избранных", color = SecondaryText)
             Spacer(Modifier.height(12.dp))
         }
-        item { ActionCard("Избранное", Icons.Default.FavoriteBorder, Modifier.fillMaxWidth()) }
-        item { ActionCard("Плейлисты", Icons.Default.QueueMusic, Modifier.fillMaxWidth()) }
-        item { ActionCard("История", Icons.Default.History, Modifier.fillMaxWidth()) }
-        items(tracks.take(100), key = { it.id }) { track -> TrackRow(track, tracks.indexOf(track)) { onPlay(track, tracks.indexOf(track)) } }
+        items(tracks.take(200), key = { it.id }) { track ->
+            TrackRow(track, track.id in favoriteIds, { onPlay(track, tracks.indexOf(track)) }, { onFavorite(track) })
+        }
     }
 }
 
 @Composable
-private fun Settings() {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun SettingsScreen(settings: AppearanceSettings, onTheme: (String) -> Unit, onAmoled: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Spacer(Modifier.height(24.dp))
-            Text("Настройки", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("TakuTune строится вокруг глубокой кастомизации.", color = SecondaryText)
-            Spacer(Modifier.height(12.dp))
+            Text("Настройки", color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Глубокая настройка TakuTune.", color = SecondaryText)
         }
-        item { SettingCard("Оформление", "Темы, AMOLED, акцент, фон, прозрачность и анимации", Icons.Default.Palette) }
+        item {
+            SettingCard("Тема", "System / Dark / Light", Icons.Default.Palette)
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("system" to "System", "dark" to "Dark", "light" to "Light").forEach { (value, label) ->
+                    FilterChip(selected = settings.theme == value, onClick = { onTheme(value) }, label = { Text(label) })
+                }
+            }
+        }
+        item {
+            SettingToggle("AMOLED", "Полностью чёрный фон", settings.amoled, onAmoled, Icons.Default.Brightness4)
+        }
+        item {
+            SettingToggle("Dynamic color", "Поддержка системного динамического цвета", settings.dynamicColor, onDynamic, Icons.Default.ColorLens)
+        }
         item { SettingCard("Плеер", "Очередь, повтор, перемешивание, жесты и таймер", Icons.Default.Tune) }
         item { SettingCard("Аудио", "Эквалайзер, усиление баса и crossfade", Icons.Default.Equalizer) }
-        item { SettingCard("Источники", "Local / YouTube / Spotify / VK", Icons.Default.Cloud) }
-        item { SettingCard("Данные", "Резервная копия, история и медиатека", Icons.Default.Storage) }
+        item { SettingCard("Источники", "Local / YouTube / Spotify / VK через единую архитектуру", Icons.Default.Cloud) }
+        item { SettingCard("Данные", "Room, история, избранное, плейлисты и резервное копирование", Icons.Default.Storage) }
     }
 }
 
 @Composable
-private fun FullPlayer(state: PlaybackState, toggle: () -> Unit, next: () -> Unit, previous: () -> Unit, seek: (Long) -> Unit, back: () -> Unit) {
+private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Track) -> Unit, toggle: () -> Unit, next: () -> Unit, previous: () -> Unit, seek: (Long) -> Unit, shuffle: () -> Unit, repeat: () -> Unit, back: () -> Unit) {
     val track = state.current ?: return
     Column(Modifier.fillMaxSize().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(back) { Icon(Icons.Default.KeyboardArrowDown, "Назад", tint = Color.White) }
-            Text("Сейчас играет", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            IconButton(back) { Icon(Icons.Default.KeyboardArrowDown, "Назад") }
+            Text("Сейчас играет", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            IconButton({ favorite(track) }) { Icon(if (track.id in favorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Избранное", tint = Purple) }
         }
         Spacer(Modifier.height(20.dp))
         Box(Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(32.dp)).background(Elevated), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.MusicNote, null, tint = Purple, modifier = Modifier.size(100.dp))
         }
         Spacer(Modifier.height(20.dp))
-        Text(track.title, color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Text(track.title, color = MaterialTheme.colorScheme.onBackground, fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Text(track.artist, color = SecondaryText)
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
         Slider(value = if (state.durationMs > 0) state.positionMs.toFloat().coerceIn(0f, state.durationMs.toFloat()) else 0f, onValueChange = { seek(it.toLong()) }, valueRange = 0f..state.durationMs.coerceAtLeast(1).toFloat())
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(previous) { Icon(Icons.Default.SkipPrevious, "Предыдущий", tint = Color.White, modifier = Modifier.size(34.dp)) }
-            IconButton(toggle) {
-                Icon(if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Воспроизведение", tint = Purple, modifier = Modifier.size(56.dp))
-            }
-            IconButton(next) { Icon(Icons.Default.SkipNext, "Следующий", tint = Color.White, modifier = Modifier.size(34.dp)) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            IconButton(shuffle) { Icon(Icons.Default.Shuffle, "Перемешать", tint = if (state.shuffle) Purple else SecondaryText) }
+            IconButton(previous) { Icon(Icons.Default.SkipPrevious, "Предыдущий", modifier = Modifier.size(36.dp)) }
+            FilledIconButton(toggle, modifier = Modifier.size(68.dp)) { Icon(if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, "Воспроизведение", modifier = Modifier.size(36.dp)) }
+            IconButton(next) { Icon(Icons.Default.SkipNext, "Следующий", modifier = Modifier.size(36.dp)) }
+            IconButton(repeat) { Icon(Icons.Default.Repeat, "Повтор", tint = if (state.repeatMode != 0) Purple else SecondaryText) }
         }
     }
 }
 
 @Composable
 private fun MiniPlayer(state: PlaybackState, open: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(10.dp).clip(RoundedCornerShape(18.dp)).background(Elevated).clickable(open).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(18.dp)).background(Elevated).clickable(open).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.MusicNote, null, tint = Purple, modifier = Modifier.size(30.dp))
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(state.current?.title.orEmpty(), color = Color.White, maxLines = 1)
+            Text(state.current?.title.orEmpty(), color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
             Text(state.current?.artist.orEmpty(), color = SecondaryText, fontSize = 12.sp, maxLines = 1)
         }
         Icon(if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = Purple)
@@ -263,24 +299,26 @@ private fun MiniPlayer(state: PlaybackState, open: () -> Unit) {
 }
 
 @Composable
-private fun TrackRow(track: Track, index: Int, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceColor).clickable(onClick = onClick).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun TrackRow(track: Track, favorite: Boolean, onPlay: () -> Unit, onFavorite: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceColor).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(48.dp).clip(RoundedCornerShape(13.dp)).background(Elevated), contentAlignment = Alignment.Center) { Icon(Icons.Default.MusicNote, null, tint = Purple) }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(track.title, color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Column(Modifier.weight(1f).clickable(onClick = onPlay)) {
+            Text(track.title, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Text(track.artist, color = SecondaryText, fontSize = 12.sp, maxLines = 1)
         }
-        Icon(Icons.Default.PlayArrow, null, tint = Purple)
+        IconButton(onFavorite) { Icon(if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = if (favorite) Purple else SecondaryText) }
+        IconButton(onPlay) { Icon(Icons.Default.PlayArrow, "Воспроизвести", tint = Purple) }
     }
 }
 
 @Composable
-private fun ActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
-    Row(modifier.clip(RoundedCornerShape(18.dp)).background(SurfaceColor).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun SettingToggle(title: String, subtitle: String, checked: Boolean, onChecked: (Boolean) -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = Purple)
-        Spacer(Modifier.width(10.dp))
-        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) { Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold); Text(subtitle, color = SecondaryText, fontSize = 12.sp) }
+        Switch(checked, onCheckedChange = onChecked)
     }
 }
 
@@ -289,14 +327,23 @@ private fun SettingCard(title: String, subtitle: String, icon: androidx.compose.
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = Purple, modifier = Modifier.size(26.dp))
         Spacer(Modifier.width(14.dp))
-        Column { Text(title, color = Color.White, fontWeight = FontWeight.SemiBold); Text(subtitle, color = SecondaryText, fontSize = 12.sp) }
+        Column { Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold); Text(subtitle, color = SecondaryText, fontSize = 12.sp) }
+    }
+}
+
+@Composable
+private fun ActionCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
+    Row(modifier.clip(RoundedCornerShape(18.dp)).background(SurfaceColor).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = Purple)
+        Spacer(Modifier.width(10.dp))
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
 private fun EmptyCard(title: String, subtitle: String) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SurfaceColor).padding(20.dp)) {
-        Text(title, color = Color.White, fontWeight = FontWeight.Bold)
+        Text(title, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
         Text(subtitle, color = SecondaryText, fontSize = 13.sp)
     }
 }
