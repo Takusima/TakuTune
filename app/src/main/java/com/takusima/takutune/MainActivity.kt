@@ -4,6 +4,7 @@ import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -93,6 +94,8 @@ class MainActivity : ComponentActivity() {
                     onTheme = viewModel::setTheme,
                     onAmoled = viewModel::setAmoled,
                     onDynamic = viewModel::setDynamicColor,
+                    onAccent = viewModel::setAccent,
+                    onAnimationScale = viewModel::setAnimationScale,
                     onRefresh = viewModel::scan
                 )
             }
@@ -128,16 +131,23 @@ private fun TakuTuneApp(
     onTheme: (String) -> Unit,
     onAmoled: (Boolean) -> Unit,
     onDynamic: (Boolean) -> Unit,
+    onAccent: (String) -> Unit,
+    onAnimationScale: (Float) -> Unit,
     onRefresh: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) }
     var playerOpen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = playerOpen || tab != 0) {
+        playerOpen = false
+        tab = 0
+    }
     MaterialTheme {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     if (playerOpen && playback.current != null) {
-                        FullPlayer(playback, favoriteIds, onToggleFavorite, onToggle, onNext, onPrevious, onSeek, onShuffle, onRepeat) { playerOpen = false }
+                        FullPlayer(playback, favoriteIds, onToggleFavorite, onToggle, onNext, onPrevious, onSeek, onShuffle, onRepeat)
                     } else {
                         when (tab) {
                             0 -> Home(tracks, playback, favoriteIds, onPlay, onToggleFavorite, { tab = 1 }, onRefresh)
@@ -219,15 +229,35 @@ private fun Library(tracks: List<Track>, favoriteIds: Set<Long>, onPlay: (Track,
 }
 
 @Composable
-private fun SettingsScreen(settings: AppearanceSettings, onTheme: (String) -> Unit, onAmoled: (Boolean) -> Unit, onDynamic: (Boolean) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun SettingsScreen(
+    settings: AppearanceSettings,
+    onTheme: (String) -> Unit,
+    onAmoled: (Boolean) -> Unit,
+    onDynamic: (Boolean) -> Unit,
+    onAccent: (String) -> Unit,
+    onAnimationScale: (Float) -> Unit,
+    onRefresh: () -> Unit
+) {
+    val accentPresets = listOf(
+        "#B36BFF" to "Фиолетовый",
+        "#7C4DFF" to "Индиго",
+        "#00B8D4" to "Циан",
+        "#00C853" to "Зелёный",
+        "#FF4081" to "Розовый",
+        "#FF9800" to "Оранжевый"
+    )
+
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
             Spacer(Modifier.height(24.dp))
             Text("Настройки", color = MaterialTheme.colorScheme.onBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-            Text("Глубокая настройка TakuTune.", color = SecondaryText)
+            Text("Здесь каждая настройка реально меняет приложение.", color = SecondaryText)
         }
         item {
-            SettingCard("Тема", "System / Dark / Light", Icons.Default.Palette)
+            SettingCard("Тема", "Системная, тёмная или светлая", Icons.Default.Palette)
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("system" to "System", "dark" to "Dark", "light" to "Light").forEach { (value, label) ->
                     FilterChip(selected = settings.theme == value, onClick = { onTheme(value) }, label = { Text(label) })
@@ -235,24 +265,56 @@ private fun SettingsScreen(settings: AppearanceSettings, onTheme: (String) -> Un
             }
         }
         item {
-            SettingToggle("AMOLED", "Полностью чёрный фон", settings.amoled, onAmoled, Icons.Default.Brightness4)
+            SettingToggle("AMOLED", "Полностью чёрный фон в тёмной теме", settings.amoled, onAmoled, Icons.Default.Brightness4)
         }
         item {
-            SettingToggle("Dynamic color", "Поддержка системного динамического цвета", settings.dynamicColor, onDynamic, Icons.Default.ColorLens)
+            SettingToggle("Dynamic color", "Использовать цвета системы Android", settings.dynamicColor, onDynamic, Icons.Default.ColorLens)
         }
-        item { SettingCard("Плеер", "Очередь, повтор, перемешивание, жесты и таймер", Icons.Default.Tune) }
-        item { SettingCard("Аудио", "Эквалайзер, усиление баса и crossfade", Icons.Default.Equalizer) }
-        item { SettingCard("Источники", "Local / YouTube / Spotify / VK через единую архитектуру", Icons.Default.Cloud) }
-        item { SettingCard("Данные", "Room, история, избранное, плейлисты и резервное копирование", Icons.Default.Storage) }
+        item {
+            SettingCard("Акцентный цвет", "Меняет основные кнопки, иконки и выделения", Icons.Default.Colorize)
+            Column(Modifier.fillMaxWidth().padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                accentPresets.chunked(3).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { (hex, name) ->
+                            val color = Color(android.graphics.Color.parseColor(hex))
+                            FilterChip(
+                                modifier = Modifier.weight(1f),
+                                selected = settings.accent.equals(hex, ignoreCase = true),
+                                onClick = { onAccent(hex) },
+                                leadingIcon = { Box(Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(color)) },
+                                label = { Text(name, maxLines = 1) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            SettingCard("Анимации", "Скорость интерфейсных анимаций", Icons.Default.Animation)
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Медленно", color = SecondaryText, fontSize = 12.sp)
+                    Text("${(settings.animationScale * 100).toInt()}%", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Быстро", color = SecondaryText, fontSize = 12.sp)
+                }
+                Slider(value = settings.animationScale.coerceIn(0.5f, 1.5f), onValueChange = onAnimationScale, valueRange = 0.5f..1.5f, steps = 9)
+            }
+        }
+        item {
+            SettingCard("Музыка", "Локальная медиатека", Icons.Default.LibraryMusic)
+            TextButton(onClick = onRefresh) {
+                Icon(Icons.Default.Refresh, null)
+                Spacer(Modifier.width(6.dp))
+                Text("Пересканировать музыку")
+            }
+        }
     }
 }
-
 @Composable
-private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Track) -> Unit, toggle: () -> Unit, next: () -> Unit, previous: () -> Unit, seek: (Long) -> Unit, shuffle: () -> Unit, repeat: () -> Unit, back: () -> Unit) {
+private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Track) -> Unit, toggle: () -> Unit, next: () -> Unit, previous: () -> Unit, seek: (Long) -> Unit, shuffle: () -> Unit, repeat: () -> Unit) {
     val track = state.current ?: return
     Column(Modifier.fillMaxSize().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(back) { Icon(Icons.Default.KeyboardArrowDown, "Назад") }
             Text("Сейчас играет", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             IconButton({ favorite(track) }) { Icon(if (track.id in favorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Избранное", tint = Purple) }
