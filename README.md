@@ -229,3 +229,42 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 
 **Unresolved**
 - Full GitHub Actions compilation has not yet been executed for this specific change set.
+
+### Technical changelog — 2026-10-03 — /tt-core /refactor-solid /compile-git
+
+**Author:** Takusima
+
+**Changed files and exact line ranges**
+- `app/src/main/java/com/takusima/takutune/core/presentation/TakuTuneViewModel.kt`: lines 1–152 — new MVVM state owner; combines Room/DataStore/Media3 state, moves scanning/playback/settings actions out of Activity, adds lifecycle-scoped playback position refresh, and releases the controller with the ViewModel.
+- `app/src/main/java/com/takusima/takutune/MainActivity.kt`: lines 1–362 — Activity reduced to permission/bootstrap responsibilities; Compose collects one lifecycle-aware `StateFlow` and dispatches UI events to the ViewModel.
+- `app/src/main/java/com/takusima/takutune/core/preferences/SettingsStore.kt`: lines 1–46 — documented and normalized DataStore settings access; animation scale is clamped to a safe range.
+- `app/src/main/java/com/takusima/takutune/playback/PlaybackController.kt`: lines 1–62 — centralized Media3 controller lifecycle, stable media-ID parsing, safe seek/repeat bounds, and queue state publication.
+- `app/build.gradle.kts`: lines 1–54 — aligned compile/target SDK to 37 and lifecycle Compose dependencies to the versions actually resolved by the build.
+- `build.gradle.kts`: lines 1–6 — upgraded AGP to 9.1.1, Kotlin/Compose plugin to 2.2.10, and KSP to 2.2.10-2.0.2.
+- `.github/workflows/build.yml`: lines 1–35 — Gradle runner updated from 8.9 to 9.3.1.
+
+**Build failure detected**
+- GitHub Actions run `37152281338` / run #47 failed at ` :app:checkDebugAarMetadata`.
+- The failure was dependency/toolchain incompatibility, not Kotlin source compilation.
+- Resolved requirements reported by Gradle included AGP >= 9.1.0 and compileSdk >= 37 for Navigation 2.10.2 and lifecycle 2.11.0; the project was on AGP 8.7.3 / compileSdk 36.
+- AGP 8.7 also emitted the compileSdk 36 compatibility warning.
+
+**Resolution**
+- Upgraded AGP to 9.1.1.
+- Upgraded Gradle Actions setup to 9.3.1.
+- Upgraded Kotlin and Compose compiler plugins to 2.2.10.
+- Upgraded KSP to 2.2.10-2.0.2.
+- Raised compileSdk/targetSdk to 37.
+- Aligned lifecycle-runtime-compose, lifecycle-viewmodel-compose and activity-compose with the dependency versions resolved by the failing build.
+- No HTML, WebView or hybrid layer was introduced.
+
+**Current build status**
+- Final validation run: GitHub Actions run #54, commit `d523166ad9c524b67173353bc60e71a18fcb7a79`.
+- At changelog write time the run was still **in progress**; no new compiler failure was available yet.
+- Earlier superseded push runs #50–#53 were also in progress because GitHub Actions triggers on every main push.
+- Unresolved: final run #54 result is pending.
+
+**Architecture result**
+- Activity no longer owns Room/DataStore/Media3 business logic.
+- ViewModel is now the presentation state owner.
+- Room remains reactive through Flow; DataStore remains reactive through Flow; Media3 remains isolated behind PlaybackController.
