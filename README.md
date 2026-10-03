@@ -199,3 +199,33 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Что изменилось**
 - Теперь это уже не набор экранов: есть persistent data layer, единый playback state, очередь, избранное, настройки и расширяемая система источников.
 - YouTube/Spotify/VK пока остаются реальными следующими интеграциями, а не фальшивыми кнопками.
+
+
+### Technical changelog — 2026-10-03 — /tt-core /room-flow
+
+**Author:** Takusima
+
+**Changed files**
+- `app/src/main/java/com/takusima/takutune/core/database/Entities.kt`
+- `app/src/main/java/com/takusima/takutune/core/database/TakuTuneDao.kt`
+
+**Exact line tracking**
+- `Entities.kt`: complete entity declarations reformatted/documented; effective changed lines 1–45.
+- `TakuTuneDao.kt`: DAO declarations reformatted/documented; effective changed lines 1–55.
+
+**Changes**
+- Added author KDoc for Room entities and DAO.
+- Preserved existing schema and Room version.
+- Preserved reactive `Flow` queries.
+- Preserved favorites, history, playlists and blocked-track operations.
+- Added deterministic ordering to favorite and blocked-track ID flows.
+
+**Build failures**
+- No compiler/build failure was produced by this change set.
+
+**Resolution**
+- No failure resolution required.
+- Repository content was updated through GitHub Contents API with current blob SHAs.
+
+**Unresolved**
+- Full GitHub Actions compilation has not yet been executed for this specific change set.
