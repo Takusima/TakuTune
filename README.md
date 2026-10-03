@@ -395,3 +395,23 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 
 **Unresolved**
 - No known source errors remain from the compiler output supplied for run #64. Final CI validation is required to catch any subsequent compiler or packaging error.
+
+
+### Technical changelog — 2026-10-04 — /tt-core /compile-fix-history
+
+**Author:** Takusima
+
+**Follow-up source audit after Actions failures**
+- Audited the complete current `TakuTuneViewModel.kt` and `LocalLibraryRepository.kt` contracts after the previous compile-fix block.
+- Found one remaining type mismatch that was not present in the original run #64 excerpt: `TakuTuneViewModel.play()` passed `track.id: Long` into `LocalLibraryRepository.addHistory(track: Track)`.
+
+**Resolution**
+- `app/src/main/java/com/takusima/takutune/core/presentation/TakuTuneViewModel.kt:70` — changed `library.addHistory(track.id)` to `library.addHistory(track)`.
+- This makes the history call consistent with the repository's existing Track-based API and removes the remaining known ViewModel/Repository argument mismatch.
+
+**Build status**
+- A new GitHub Actions validation is triggered by this commit.
+- Success is not claimed until CI completes.
+
+**Unresolved**
+- No additional source-level mismatch was found in the audited ViewModel/Repository/DAO chain. CI remains the final authority for any remaining compiler or packaging errors.
