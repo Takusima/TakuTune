@@ -47,30 +47,52 @@ class PlaybackController(context: Context) {
     private fun publish(player: Player) {
         val current = player.currentMediaItem?.let { track(it, player.duration) }
         val queue = (0 until player.mediaItemCount).map { track(player.getMediaItemAt(it), 0) }
-        _state.value = PlaybackState(current, player.isPlaying, player.currentPosition.coerceAtLeast(0), player.duration.coerceAtLeast(0), queue, player.currentMediaItemIndex)
+        _state.value = PlaybackState(
+            current = current,
+            isPlaying = player.isPlaying,
+            positionMs = player.currentPosition.coerceAtLeast(0),
+            durationMs = player.duration.coerceAtLeast(0),
+            queue = queue,
+            index = player.currentMediaItemIndex,
+            shuffle = player.shuffleModeEnabled,
+            repeatMode = player.repeatMode
+        )
     }
 
     fun play(track: Track) = playQueue(listOf(track))
+
     fun playQueue(tracks: List<Track>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
         controller?.apply {
-            setMediaItems(tracks.map {
-                MediaItem.Builder()
-                    .setMediaId(it.id.toString())
-                    .setUri(it.uri)
-                    .setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).setArtist(it.artist).setAlbumTitle(it.album).build())
-                    .build()
-            }, startIndex.coerceIn(0, tracks.lastIndex), 0)
+            setMediaItems(
+                tracks.map {
+                    MediaItem.Builder()
+                        .setMediaId(it.id.toString())
+                        .setUri(it.uri)
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(it.title)
+                                .setArtist(it.artist)
+                                .setAlbumTitle(it.album)
+                                .build()
+                        )
+                        .build()
+                },
+                startIndex.coerceIn(0, tracks.lastIndex),
+                0
+            )
             prepare()
             play()
         }
     }
+
     fun toggle() { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
     fun next() { controller?.seekToNextMediaItem() }
     fun previous() { controller?.seekToPreviousMediaItem() }
     fun seekTo(positionMs: Long) { controller?.seekTo(positionMs) }
     fun setShuffle(enabled: Boolean) { controller?.shuffleModeEnabled = enabled }
     fun setRepeat(mode: Int) { controller?.repeatMode = mode }
+
     fun release() {
         controller?.removeListener(listener)
         controller?.release()
