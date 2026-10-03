@@ -98,3 +98,29 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Что изменилось**
 - Сканер теперь является реальным источником данных для интерфейса, а не декоративной заготовкой.
 - Следующий этап: связать выбранный Track с MediaController/PlaybackService, чтобы воспроизведение продолжалось после выхода из Activity.
+
+
+### 2026-10-03 — Stage 3: connect UI to background playback
+
+**Что добавлено**
+- Добавлен PlaybackController, который подключается к PlaybackService через SessionToken и MediaController.
+- Нажатие на реальный локальный трек теперь передаёт URI и метаданные в Media3-сессию и запускает воспроизведение.
+- selectedTrack теперь хранит полноценный Track, а не только строку с названием.
+- Экран плеера показывает название и исполнителя выбранного локального трека.
+
+**Что сломалось**
+- В проекте существовал отдельный PlayerManager со своим ExoPlayer. Это создавало второй независимый экземпляр плеера и не было связано с PlaybackService.
+- Старый UI передавал в плеер только строку, поэтому реальный URI трека терялся.
+
+**Как исправлено**
+- PlayerManager удалён.
+- Воспроизведение теперь идёт через единый PlaybackService + MediaSession.
+- MainActivity использует PlaybackController для подключения к MediaSession.
+
+**Где сломалось**
+- app/src/main/java/com/takusima/takutune/playback/PlayerManager.kt.
+- app/src/main/java/com/takusima/takutune/MainActivity.kt, обработчик локального трека и состояние selectedTrack.
+
+**Что изменилось**
+- TakuTune впервые получил сквозной путь: MediaStore → Track → MediaController → PlaybackService → ExoPlayer.
+- Следующий технический этап: реактивное состояние плеера, очередь, предыдущий/следующий трек, play/pause в UI и Room.
