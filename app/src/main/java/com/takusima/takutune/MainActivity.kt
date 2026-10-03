@@ -1,12 +1,6 @@
 package com.takusima.takutune
 
-import android.annotation.SuppressLint
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -23,19 +17,25 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,14 +52,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
-private val Purple = Color(0xFF9C5CFF)
-private val PurpleDark = Color(0xFF6C35B5)
-private val Background = Color(0xFF0D0914)
-private val SurfaceColor = Color(0xFF17111F)
+private val Background = Color(0xFF0A0710)
+private val Surface = Color(0xFF15101C)
+private val SurfaceElevated = Color(0xFF1D1626)
+private val Purple = Color(0xFFB36BFF)
+private val PurpleDark = Color(0xFF6F36A8)
+private val TextSecondary = Color(0xFFAAA0B4)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,234 +74,261 @@ private fun TakuTuneApp() {
             primary = Purple,
             secondary = PurpleDark,
             background = Background,
-            surface = SurfaceColor
+            surface = Surface
         )
     ) {
-        Surface(Modifier.fillMaxSize(), color = Background) { TakuTuneScreen() }
+        Surface(Modifier.fillMaxSize(), color = Background) {
+            TakuTuneShell()
+        }
     }
 }
 
 @Composable
-private fun TakuTuneScreen() {
+private fun TakuTuneShell() {
     var tab by remember { mutableIntStateOf(0) }
-    var query by remember { mutableStateOf("") }
-    var playerUrl by remember { mutableStateOf<String?>(null) }
-
-    if (playerUrl != null) {
-        YouTubeMusicPlayer(playerUrl!!, onBack = { playerUrl = null })
-        return
-    }
+    var selectedTrack by remember { mutableStateOf<String?>(null) }
 
     Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier.weight(1f).padding(horizontal = 20.dp, vertical = 22.dp)
-        ) {
-            when (tab) {
-                0 -> HomeScreen(
-                    onSearch = { tab = 1 },
-                    onOpenMusic = { playerUrl = "https://music.youtube.com/" }
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                selectedTrack != null -> PlayerScreen(
+                    title = selectedTrack!!,
+                    onBack = { selectedTrack = null }
                 )
-                1 -> SearchScreen(
-                    query = query,
-                    onQueryChange = { query = it },
-                    onPlaySearch = {
-                        if (query.isNotBlank()) {
-                            val encoded = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8.toString())
-                            playerUrl = "https://music.youtube.com/search?q=$encoded"
-                        }
-                    }
-                )
-                2 -> LibraryScreen()
+                tab == 0 -> HomeScreen(onPlay = { selectedTrack = it }, onSearch = { tab = 1 })
+                tab == 1 -> SearchScreen(onPlay = { selectedTrack = it })
+                tab == 2 -> LibraryScreen(onPlay = { selectedTrack = it })
                 else -> SettingsScreen()
             }
         }
-        BottomBar(tab) { tab = it }
-    }
-}
 
-@Composable
-private fun HomeScreen(onSearch: () -> Unit, onOpenMusic: () -> Unit) {
-    Column {
-        Text("TakuTune", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-        Text("Музыка из YouTube Music", color = Color(0xFFB8AFC0), fontSize = 15.sp)
-        Spacer(Modifier.height(20.dp))
-
-        Box(
-            Modifier.fillMaxWidth().height(190.dp)
-                .clip(RoundedCornerShape(28.dp))
-                .background(Brush.linearGradient(listOf(PurpleDark, Color(0xFF321B50), Color(0xFF120C19))))
-                .clickable { onOpenMusic() }
-                .padding(24.dp)
-        ) {
-            Column {
-                Text("YOUTUBE MUSIC", color = Color(0xFFDCCBFF), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(5.dp))
-                Text("Слушать музыку", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text("Настоящее воспроизведение через YouTube Music", color = Color(0xFFE5DDF0), fontSize = 14.sp)
-                Spacer(Modifier.height(15.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(Purple), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.PlayArrow, null, tint = Color.White)
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text("Открыть плеер", color = Color.White, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-        Text("Быстрый поиск", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor)
-                .clickable { onSearch() }.padding(17.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Search, null, tint = Purple)
-            Spacer(Modifier.width(12.dp))
-            Text("Найти песню, исполнителя или альбом", color = Color(0xFFAAA1B3), fontSize = 14.sp)
-        }
-
-        Spacer(Modifier.height(24.dp))
-        Text("Каталог и воспроизведение берутся из YouTube Music.", color = Color(0xFF756C7D), fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun SearchScreen(query: String, onQueryChange: (String) -> Unit, onPlaySearch: () -> Unit) {
-    Column {
-        Text("Поиск", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-        Text("YouTube Music", color = Color(0xFFB8AFC0), fontSize = 14.sp)
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text("Например: After Dark") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
-            trailingIcon = {
-                IconButton(onClick = onPlaySearch) {
-                    Icon(Icons.Default.PlayArrow, "Search", tint = Purple)
-                }
-            },
-            shape = RoundedCornerShape(18.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = SurfaceColor,
-                unfocusedContainerColor = SurfaceColor,
-                focusedBorderColor = Purple,
-                unfocusedBorderColor = Color.Transparent
+        if (selectedTrack == null) {
+            MiniPlayer(
+                title = "Ничего не играет",
+                onClick = { },
+                enabled = false
             )
-        )
-        Spacer(Modifier.height(18.dp))
-        Box(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor)
-                .clickable { onPlaySearch() }.padding(18.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.PlayArrow, null, tint = Purple)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text("Искать и открыть", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    Text("Результаты откроются внутри TakuTune", color = Color(0xFFAAA1B3), fontSize = 12.sp)
-                }
-            }
+            BottomBar(tab = tab, onTab = { tab = it })
         }
     }
 }
 
 @Composable
-private fun LibraryScreen() {
-    Column {
-        Text("Медиатека", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-        Text("Избранное и история — следующий этап", color = Color(0xFFB8AFC0), fontSize = 14.sp)
-        Spacer(Modifier.height(20.dp))
-        LibraryCard("♥", "Любимые", "Сохранённые треки")
+private fun HomeScreen(onPlay: (String) -> Unit, onSearch: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Spacer(Modifier.height(22.dp))
+            Text("TakuTune", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+            Text("Твоя музыка. Твой интерфейс.", color = TextSecondary, fontSize = 14.sp)
+        }
+
+        item {
+            SearchPill(onClick = onSearch)
+        }
+
+        item {
+            Box(
+                Modifier.fillMaxWidth()
+                    .height(190.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(PurpleDark, Color(0xFF3A1C55), Color(0xFF171020))
+                        )
+                    )
+                    .clickable { onPlay("TakuTune demo") }
+                    .padding(22.dp)
+            ) {
+                Column {
+                    Text("NOW PLAYING", color = Color(0xFFE4D2FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Музыка без лишнего", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Нативный интерфейс на Jetpack Compose. Плеер и источники подключим следующим этапом.",
+                        color = Color(0xFFE1D7E9),
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape).background(Purple),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.PlayArrow, null, tint = Color.White)
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text("Открыть плеер", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        item {
+            SectionTitle("Быстрый доступ")
+        }
+
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickCard(Icons.Default.FavoriteBorder, "Любимые", Modifier.weight(1f))
+                QuickCard(Icons.Default.QueueMusic, "Плейлисты", Modifier.weight(1f))
+            }
+        }
+
+        item {
+            SectionTitle("Недавнее")
+        }
+
+        items(listOf("TakuTune demo", "Музыка появится после сканирования")) { title ->
+            TrackRow(title = title, subtitle = "Локальная медиатека", onPlay = { onPlay(title) })
+        }
+
+        item { Spacer(Modifier.height(12.dp)) }
+    }
+}
+
+@Composable
+private fun SearchScreen(onPlay: (String) -> Unit) {
+    var query by remember { mutableStateOf("") }
+
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(22.dp))
+        Text("Поиск", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+        Text("Единый поиск по подключённым источникам", color = TextSecondary, fontSize = 14.sp)
+        Spacer(Modifier.height(18.dp))
+
+        SearchPill(
+            query = query,
+            onQueryChange = { query = it },
+            onClick = { if (query.isNotBlank()) onPlay(query.trim()) }
+        )
+
+        Spacer(Modifier.height(18.dp))
+        Text("Источники", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Spacer(Modifier.height(10.dp))
-        LibraryCard("◷", "История", "Недавно прослушанное")
-        Spacer(Modifier.height(10.dp))
-        LibraryCard("♫", "Плейлисты", "Твои подборки")
+        SourceRow("Локальная музыка", "На устройстве", true)
+        SourceRow("YouTube", "Подключим отдельно", false)
+        SourceRow("Spotify", "Подключим через официальный API", false)
+        SourceRow("VK", "Провайдер добавим после проверки API", false)
+    }
+}
+
+@Composable
+private fun LibraryScreen(onPlay: (String) -> Unit) {
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Spacer(Modifier.height(22.dp))
+            Text("Медиатека", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Музыка, история и плейлисты в одном месте", color = TextSecondary, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
+        }
+        item { LibraryCard(Icons.Default.FavoriteBorder, "Любимые", "0 треков") }
+        item { LibraryCard(Icons.Default.Album, "Альбомы", "0 альбомов") }
+        item { LibraryCard(Icons.Default.MusicNote, "Исполнители", "0 исполнителей") }
+        item { LibraryCard(Icons.Default.QueueMusic, "Плейлисты", "0 плейлистов") }
+        item { LibraryCard(Icons.Default.LibraryMusic, "История", "0 прослушиваний") }
+        item { TrackRow("Тестовый трек", "Нажми для открытия плеера", onPlay = { onPlay("Тестовый трек") }) }
     }
 }
 
 @Composable
 private fun SettingsScreen() {
-    Column {
-        Text("Настройки", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-        Text("TakuTune", color = Color(0xFFB8AFC0), fontSize = 14.sp)
-        Spacer(Modifier.height(20.dp))
-        LibraryCard("🎨", "Оформление", "Фиолетовая тема")
-        Spacer(Modifier.height(10.dp))
-        LibraryCard("▶", "Воспроизведение", "Источник: YouTube Music")
-        Spacer(Modifier.height(10.dp))
-        LibraryCard("ℹ", "О приложении", "TakuTune")
-    }
-}
-
-@Composable
-private fun LibraryCard(icon: String, title: String, subtitle: String) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SurfaceColor).padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    LazyColumn(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(PurpleDark), contentAlignment = Alignment.Center) {
-            Text(icon, color = Color.White, fontSize = 20.sp)
+        item {
+            Spacer(Modifier.height(22.dp))
+            Text("Настройки", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text("Глубокая настройка интерфейса и воспроизведения", color = TextSecondary, fontSize = 14.sp)
+            Spacer(Modifier.height(10.dp))
         }
-        Spacer(Modifier.width(14.dp))
-        Column {
-            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = Color(0xFFAAA1B3), fontSize = 13.sp)
-        }
+        item { SettingsCard(Icons.Default.Palette, "Оформление", "Тема, акцент, фон, прозрачность и анимации") }
+        item { SettingsCard(Icons.Default.Tune, "Воспроизведение", "Очередь, повтор, перемешивание, скорость и таймер") }
+        item { SettingsCard(Icons.Default.MusicNote, "Источники", "Локальная музыка, YouTube, Spotify и VK") }
+        item { SettingsCard(Icons.Default.LibraryMusic, "Медиатека", "Сканирование, избранное, история и плейлисты") }
+        item { SettingsCard(Icons.Default.Settings, "Система", "Уведомления, Bluetooth, медиа-кнопки и резервная копия") }
     }
 }
 
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun YouTubeMusicPlayer(url: String, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
+private fun PlayerScreen(title: String, onBack: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Text("‹", color = Color.White, fontSize = 34.sp)
+            }
+            Text("Плеер", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(22.dp))
+
+        Box(
+            Modifier.fillMaxWidth().height(330.dp)
+                .clip(RoundedCornerShape(30.dp))
+                .background(Brush.linearGradient(listOf(PurpleDark, Color(0xFF24132F), Surface))),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.MusicNote, null, tint = Color(0xFFE7D5FF), modifier = Modifier.size(92.dp))
+        }
+
+        Spacer(Modifier.height(20.dp))
+        Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("TakuTune", color = TextSecondary, fontSize = 14.sp)
+        Spacer(Modifier.height(20.dp))
+
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(SurfaceElevated))
+        Spacer(Modifier.height(18.dp))
+
         Row(
-            Modifier.fillMaxWidth().background(Color(0xFF100B16)).navigationBarsPadding(),
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
+            IconButton(onClick = {}) { Text("↶", color = Color.White, fontSize = 25.sp) }
+            Box(
+                Modifier.size(64.dp).clip(CircleShape).background(Purple),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(34.dp))
             }
-            Column(Modifier.weight(1f)) {
-                Text("TakuTune Player", color = Color.White, fontWeight = FontWeight.Bold)
-                Text("YouTube Music", color = Color(0xFFAAA1B3), fontSize = 11.sp)
-            }
+            IconButton(onClick = {}) { Text("↷", color = Color.White, fontSize = 25.sp) }
         }
-
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.mediaPlaybackRequiresUserGesture = false
-                    settings.userAgentString = settings.userAgentString + " TakuTune/1.0"
-                    webChromeClient = WebChromeClient()
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = false
-                        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-                            super.onPageStarted(view, url, favicon)
-                        }
-                    }
-                    loadUrl(url)
-                }
-            },
-            update = { webView ->
-                if (webView.url != url) {
-                    webView.loadUrl(url)
-                }
-            }
-        )
     }
 }
 
 @Composable
-private fun BottomBar(selected: Int, onSelected: (Int) -> Unit) {
+private fun MiniPlayer(title: String, onClick: () -> Unit, enabled: Boolean) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceElevated)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(PurpleDark),
+            contentAlignment = Alignment.Center
+        ) { Icon(Icons.Default.MusicNote, null, tint = Color.White) }
+        Spacer(Modifier.width(10.dp))
+        Text(title, color = if (enabled) Color.White else TextSecondary, modifier = Modifier.weight(1f), fontSize = 13.sp)
+        Icon(Icons.Default.PlayArrow, null, tint = if (enabled) Purple else TextSecondary)
+    }
+}
+
+@Composable
+private fun BottomBar(tab: Int, onTab: (Int) -> Unit) {
     val items = listOf(
         Icons.Default.Home to "Главная",
         Icons.Default.Search to "Поиск",
@@ -310,18 +336,131 @@ private fun BottomBar(selected: Int, onSelected: (Int) -> Unit) {
         Icons.Default.Settings to "Настройки"
     )
     Row(
-        Modifier.fillMaxWidth().background(Color(0xFF100B16)).navigationBarsPadding().padding(vertical = 8.dp),
+        Modifier.fillMaxWidth().background(Color(0xFF0E0A14)).navigationBarsPadding().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         items.forEachIndexed { index, item ->
-            val active = selected == index
+            val active = tab == index
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onSelected(index) }.padding(horizontal = 12.dp)
+                Modifier.clickable { onTab(index) }.padding(horizontal = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(item.first, item.second, tint = if (active) Purple else Color(0xFF77707D), modifier = Modifier.size(23.dp))
-                Text(item.second, color = if (active) Purple else Color(0xFF77707D), fontSize = 11.sp)
+                Icon(item.first, item.second, tint = if (active) Purple else Color(0xFF706876), modifier = Modifier.size(22.dp))
+                Text(item.second, color = if (active) Purple else Color(0xFF706876), fontSize = 10.sp)
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchPill(
+    query: String = "",
+    onQueryChange: ((String) -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface)
+            .clickable(enabled = onQueryChange == null, onClick = onClick).padding(horizontal = 15.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.Search, null, tint = Purple)
+        Spacer(Modifier.width(10.dp))
+        if (onQueryChange != null) {
+            androidx.compose.material3.BasicAlertDialog
+            androidx.compose.material3.OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                placeholder = { Text("Песня, исполнитель, альбом", color = TextSecondary) }
+            )
+            IconButton(onClick = onClick) {
+                Icon(Icons.Default.PlayArrow, null, tint = Purple)
+            }
+        } else {
+            Text("Песня, исполнитель, альбом", color = TextSecondary, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+private fun QuickCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, modifier: Modifier) {
+    Column(
+        modifier.clip(RoundedCornerShape(18.dp)).background(Surface).padding(15.dp)
+    ) {
+        Icon(icon, null, tint = Purple, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(10.dp))
+        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun TrackRow(title: String, subtitle: String, onPlay: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface)
+            .clickable(onClick = onPlay).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(SurfaceElevated), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.MusicNote, null, tint = Purple)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        }
+        Icon(Icons.Default.PlayArrow, null, tint = Purple)
+    }
+}
+
+@Composable
+private fun LibraryCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface).padding(15.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(PurpleDark), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Color.White)
+        }
+        Spacer(Modifier.width(13.dp))
+        Column {
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Purple, modifier = Modifier.size(25.dp))
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(subtitle, color = TextSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SourceRow(title: String, subtitle: String, enabled: Boolean) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(if (enabled) Purple else Color(0xFF5C5662)))
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = TextSecondary, fontSize = 12.sp)
         }
     }
 }
