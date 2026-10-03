@@ -366,7 +366,6 @@ private fun SearchPill(
         Icon(Icons.Default.Search, null, tint = Purple)
         Spacer(Modifier.width(10.dp))
         if (onQueryChange != null) {
-            androidx.compose.material3.BasicAlertDialog
             androidx.compose.material3.OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
