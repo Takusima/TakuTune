@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -36,6 +38,15 @@ class TakuTuneViewModel(
     private val playbackController: PlaybackController,
     private val scanner: LocalMusicScanner
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(500)
+                playbackController.refresh()
+            }
+        }
+    }
 
     val uiState: StateFlow<TakuTuneUiState> =
         combine(
