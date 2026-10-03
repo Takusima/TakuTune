@@ -70,6 +70,7 @@ private val PurpleDark = Color(0xFF6F36A8)
 private val TextSecondary = Color(0xFFAAA0B4)
 
 class MainActivity : ComponentActivity() {
+    private var localTracks by mutableStateOf<List<Track>>(emptyList())
     private val requestAudioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) scanLocalMusic()
     }
@@ -81,11 +82,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    companion object {
-        var localTracks: List<Track> = emptyList()
-            private set
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -93,12 +89,12 @@ class MainActivity : ComponentActivity() {
         } else {
             requestAudioPermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        setContent { TakuTuneApp() }
+        setContent { TakuTuneApp(localTracks) }
     }
 }
 
 @Composable
-private fun TakuTuneApp() {
+private fun TakuTuneApp(localTracks: List<Track>) {
     MaterialTheme(
         colorScheme = MaterialTheme.colorScheme.copy(
             primary = Purple,
@@ -108,13 +104,13 @@ private fun TakuTuneApp() {
         )
     ) {
         Surface(Modifier.fillMaxSize(), color = Background) {
-            TakuTuneShell()
+            TakuTuneShell(localTracks)
         }
     }
 }
 
 @Composable
-private fun TakuTuneShell() {
+private fun TakuTuneShell(localTracks: List<Track>) {
     var tab by remember { mutableIntStateOf(0) }
     var selectedTrack by remember { mutableStateOf<String?>(null) }
 
@@ -125,9 +121,9 @@ private fun TakuTuneShell() {
                     title = selectedTrack!!,
                     onBack = { selectedTrack = null }
                 )
-                tab == 0 -> HomeScreen(onPlay = { selectedTrack = it }, onSearch = { tab = 1 })
+                tab == 0 -> HomeScreen(tracks = localTracks, onPlay = { selectedTrack = it }, onSearch = { tab = 1 })
                 tab == 1 -> SearchScreen(onPlay = { selectedTrack = it })
-                tab == 2 -> LibraryScreen(onPlay = { selectedTrack = it })
+                tab == 2 -> LibraryScreen(tracks = localTracks, onPlay = { selectedTrack = it })
                 else -> SettingsScreen()
             }
         }
@@ -144,7 +140,7 @@ private fun TakuTuneShell() {
 }
 
 @Composable
-private fun HomeScreen(onPlay: (String) -> Unit, onSearch: () -> Unit) {
+private fun HomeScreen(tracks: List<Track>, onPlay: (String) -> Unit, onSearch: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -212,7 +208,7 @@ private fun HomeScreen(onPlay: (String) -> Unit, onSearch: () -> Unit) {
             SectionTitle("Недавнее")
         }
 
-        items(if (MainActivity.localTracks.isEmpty()) listOf("Музыка не найдена") else MainActivity.localTracks.map { it.title }) { title ->
+        items(if (tracks.isEmpty()) listOf("Музыка не найдена") else tracks.map { it.title }) { title ->
             TrackRow(title = title, subtitle = "Локальная медиатека", onPlay = { onPlay(title) })
         }
 
@@ -249,7 +245,7 @@ private fun SearchScreen(onPlay: (String) -> Unit) {
 }
 
 @Composable
-private fun LibraryScreen(onPlay: (String) -> Unit) {
+private fun LibraryScreen(tracks: List<Track>, onPlay: (String) -> Unit) {
     LazyColumn(
         Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
