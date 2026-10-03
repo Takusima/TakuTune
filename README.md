@@ -268,3 +268,27 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 - Activity no longer owns Room/DataStore/Media3 business logic.
 - ViewModel is now the presentation state owner.
 - Room remains reactive through Flow; DataStore remains reactive through Flow; Media3 remains isolated behind PlaybackController.
+
+
+### Technical changelog — 2026-10-03 — /tt-core /compile-fix-agp9
+
+**Author:** Takusima
+
+**Build failure**
+- GitHub Actions `Build TakuTune APK` failed during plugin application before Kotlin source compilation.
+- Error: `Failed to apply plugin 'org.jetbrains.kotlin.android' > Cannot add extension with name 'kotlin', as there is an extension already registered with that name.`
+- Failure location: `app/build.gradle.kts`, plugin block, where `org.jetbrains.kotlin.android` was still applied after upgrading to AGP 9.1.1.
+
+**Root cause**
+- AGP 9.0+ provides built-in Kotlin support and already registers the Kotlin extension.
+- Applying `org.jetbrains.kotlin.android` again attempts to register the same extension a second time.
+
+**Fix**
+- Removed `org.jetbrains.kotlin.android` from `app/build.gradle.kts`.
+- Removed the unused `org.jetbrains.kotlin.android` root plugin declaration from `build.gradle.kts`.
+- Kept the Kotlin Compose compiler plugin because Compose compiler configuration is still required.
+- No HTML, WebView or hybrid layer was introduced.
+
+**Expected result**
+- The Android application module now uses AGP 9.1.1 built-in Kotlin instead of applying the legacy Android Kotlin plugin.
+- Next validation must be a single full GitHub Actions build of this fix block.
