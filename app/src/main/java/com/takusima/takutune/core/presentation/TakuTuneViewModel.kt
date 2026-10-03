@@ -87,14 +87,14 @@ class TakuTuneViewModel(
     fun toggleFavorite(track: Track) {
         val currentlyFavorite = track.id in uiState.value.favoriteIds
         viewModelScope.launch(Dispatchers.IO) {
-            library.toggleFavorite(track.id, currentlyFavorite)
+            library.toggleFavorite(track, currentlyFavorite)
         }
     }
 
     fun toggleBlocked(track: Track) {
         val currentlyBlocked = track.id in uiState.value.blockedIds
         viewModelScope.launch(Dispatchers.IO) {
-            library.toggleBlocked(track.id, currentlyBlocked)
+            library.toggleBlocked(track, currentlyBlocked)
         }
     }
 
