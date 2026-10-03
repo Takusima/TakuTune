@@ -13,8 +13,8 @@ android {
         applicationId = "com.takusima.takutune"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -44,10 +44,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-session:1.11.1")
-    implementation("androidx.navigation:navigation-compose:2.8.5")
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
