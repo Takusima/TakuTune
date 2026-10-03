@@ -356,3 +356,42 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 - Configuration fix committed to `main`.
 - GitHub Actions automatically validates the complete fix block on push.
 - Compilation is not declared successful until that run reports success.
+
+
+### Technical changelog — 2026-10-03 — /tt-core /compile-fix-source-api
+
+**Author:** Takusima
+
+**Build failure detected**
+- GitHub Actions `Build TakuTune APK` run #64 failed during `:app:compileDebugKotlin` after the AGP 9/KSP configuration issue was resolved.
+- `MainActivity.kt:281`: `clickable(open)` matched no valid Compose overload.
+- `MainActivity.kt:344`: `clickable(onClick)` matched no valid Compose overload.
+- `TakuTuneViewModel.kt:52–58`: the combined Flow could not infer its types because the repository did not expose `observeBlockedIds()`.
+- `TakuTuneViewModel.kt:84, 90`: repository methods were called with `Long` track IDs while their current contract accepts `Track`.
+- `TakuTuneViewModel.kt:97`: `toggleBlocked` was missing from `LocalLibraryRepository`.
+
+**Root cause**
+- Compose `Modifier.clickable` uses the lambda through the named/default `onClick` parameter in this API surface; passing the lambda positionally selected the Boolean `enabled` parameter and produced an overload mismatch.
+- The MVVM refactor introduced blocked-track state and actions in the ViewModel before the repository contract was updated to match it.
+- Favorite and blocked mutations were also inconsistent between the ViewModel and repository signatures.
+
+**Resolution**
+- `MainActivity.kt:281, 297, 344` — changed positional `clickable` lambda calls to explicit lambda bodies.
+- `TakuTuneViewModel.kt:90, 97` — pass the full `Track` to repository mutations, matching the repository contract.
+- `LocalLibraryRepository.kt:17` — added `observeBlockedIds()` backed by the Room DAO.
+- `LocalLibraryRepository.kt:31–34` — added `toggleBlocked(track, currentlyBlocked)` using the existing Room blocked-track DAO operations.
+- Existing Room schema and DAO were preserved; no HTML/WebView/hybrid layer was introduced.
+
+**Changed files and exact line ranges**
+- `app/src/main/java/com/takusima/takutune/MainActivity.kt`: lines 281, 297 and 344 — Compose click handlers corrected.
+- `app/src/main/java/com/takusima/takutune/core/presentation/TakuTuneViewModel.kt`: lines 90 and 97 — repository mutation calls corrected to use `Track`.
+- `app/src/main/java/com/takusima/takutune/library/LocalLibraryRepository.kt`: lines 17 and 31–34 — blocked-track observation and mutation API added.
+- `README.md`: this technical changelog entry.
+
+**Build status**
+- Run #64 remains the failing baseline that exposed these source errors.
+- A fresh GitHub Actions build is triggered by this fix block.
+- The build is not declared successful until the new run completes.
+
+**Unresolved**
+- No known source errors remain from the compiler output supplied for run #64. Final CI validation is required to catch any subsequent compiler or packaging error.
