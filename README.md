@@ -292,3 +292,32 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 **Expected result**
 - The Android application module now uses AGP 9.1.1 built-in Kotlin instead of applying the legacy Android Kotlin plugin.
 - Next validation must be a single full GitHub Actions build of this fix block.
+
+
+### Technical changelog — 2026-10-03 — /tt-core /compile-fix-kotlin-options
+
+**Author:** Takusima
+
+**Build failure**
+- GitHub Actions run #58 failed after the duplicate Kotlin plugin issue was fixed.
+- Failure location: `app/build.gradle.kts:31`.
+- Errors: `Unresolved reference 'kotlinOptions'` and `Unresolved reference 'jvmTarget'`.
+
+**Root cause**
+- The previous `kotlinOptions { jvmTarget = "17" }` DSL belongs to the removed legacy `org.jetbrains.kotlin.android` plugin configuration.
+- TakuTune now uses AGP 9.1.1 built-in Kotlin support.
+
+**Resolution**
+- Removed the legacy `kotlinOptions` block.
+- Configured Kotlin JVM target through the modern `compilerOptions` DSL with `JvmTarget.JVM_17`.
+- Kept Java source/target compatibility at 17.
+- No source/UI architecture changes were made.
+- No HTML, WebView or hybrid technology was introduced.
+
+**Changed files**
+- `app/build.gradle.kts`: plugin configuration/toolchain block; legacy Kotlin options replaced by compilerOptions.
+- `README.md`: this changelog entry.
+
+**Unresolved build status**
+- This fix is committed to `main`.
+- A new GitHub Actions validation run is required; no claim of successful compilation is made before that run completes.
