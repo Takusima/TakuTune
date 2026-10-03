@@ -153,7 +153,7 @@ private fun TakuTuneApp(
                             0 -> Home(tracks, playback, favoriteIds, onPlay, onToggleFavorite, { tab = 1 }, onRefresh)
                             1 -> Search(tracks, favoriteIds, onPlay, onToggleFavorite)
                             2 -> Library(tracks, favoriteIds, onPlay, onToggleFavorite)
-                            else -> SettingsScreen(appearance, onTheme, onAmoled, onDynamic)
+                            else -> SettingsScreen(appearance, onTheme, onAmoled, onDynamic, onAccent, onAnimationScale, onRefresh)
                         }
                     }
                 }
