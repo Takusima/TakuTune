@@ -1,6 +1,15 @@
 package com.takusima.takutune
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.takusima.takutune.core.model.Track
+import com.takusima.takutune.library.LocalMusicScanner
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -61,8 +70,29 @@ private val PurpleDark = Color(0xFF6F36A8)
 private val TextSecondary = Color(0xFFAAA0B4)
 
 class MainActivity : ComponentActivity() {
+    private val requestAudioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) scanLocalMusic()
+    }
+
+    private fun scanLocalMusic() {
+        lifecycleScope.launch {
+            val tracks = withContext(Dispatchers.IO) { LocalMusicScanner(contentResolver).scan() }
+            localTracks = tracks
+        }
+    }
+
+    companion object {
+        var localTracks: List<Track> = emptyList()
+            private set
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestAudioPermission.launch(Manifest.permission.READ_MEDIA_AUDIO)
+        } else {
+            requestAudioPermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
         setContent { TakuTuneApp() }
     }
 }
@@ -182,7 +212,7 @@ private fun HomeScreen(onPlay: (String) -> Unit, onSearch: () -> Unit) {
             SectionTitle("Недавнее")
         }
 
-        items(listOf("TakuTune demo", "Музыка появится после сканирования")) { title ->
+        items(if (MainActivity.localTracks.isEmpty()) listOf("Музыка не найдена") else MainActivity.localTracks.map { it.title }) { title ->
             TrackRow(title = title, subtitle = "Локальная медиатека", onPlay = { onPlay(title) })
         }
 
