@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/** Reactive Room access for TakuTune. @author Takusima */
 @Dao
 interface TakuTuneDao {
     @Query("SELECT * FROM tracks ORDER BY title COLLATE NOCASE ASC")
@@ -23,7 +24,7 @@ interface TakuTuneDao {
     @Query("DELETE FROM favorites WHERE trackId = :trackId")
     suspend fun removeFavorite(trackId: Long)
 
-    @Query("SELECT trackId FROM favorites")
+    @Query("SELECT trackId FROM favorites ORDER BY trackId")
     fun observeFavorites(): Flow<List<Long>>
 
     @Insert
@@ -50,6 +51,6 @@ interface TakuTuneDao {
     @Query("DELETE FROM blocked_tracks WHERE trackId = :trackId")
     suspend fun unblockTrack(trackId: Long)
 
-    @Query("SELECT trackId FROM blocked_tracks")
+    @Query("SELECT trackId FROM blocked_tracks ORDER BY trackId")
     fun observeBlocked(): Flow<List<Long>>
 }
