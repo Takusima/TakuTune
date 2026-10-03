@@ -8,12 +8,19 @@ import androidx.media3.session.MediaSessionService
 @UnstableApi
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
+
     override fun onCreate() {
         super.onCreate()
-        mediaSession = MediaSession.Builder(this, ExoPlayer.Builder(this).build()).build()
+        val player = ExoPlayer.Builder(this).build()
+        mediaSession = MediaSession.Builder(this, player).build()
     }
+
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+
     override fun onDestroy() {
-        mediaSession?.player?.release(); mediaSession?.release(); mediaSession=null
+        mediaSession?.player?.release()
+        mediaSession?.release()
+        mediaSession = null
         super.onDestroy()
     }
 }
