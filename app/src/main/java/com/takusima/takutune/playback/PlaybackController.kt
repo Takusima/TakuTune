@@ -50,6 +50,8 @@ class PlaybackController(context: Context) {
             prepare(); play()
         }
     }
+    fun refresh() { controller?.let(::publish) }
+
     fun toggle() { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
     fun next() { controller?.seekToNextMediaItem() }
     fun previous() { controller?.seekToPreviousMediaItem() }
