@@ -448,3 +448,32 @@ Native Android music player project built with Kotlin and Jetpack Compose.
 
 **Unresolved**
 - CI validation is pending for this exact commit sequence.
+
+### Technical changelog — 2026-10-04 — /tt-ui /theme-contrast /controls-audit
+
+**Author:** Takusima
+
+**Problem found**
+- Theme selection could appear to change while many UI elements kept hardcoded purple, dark surfaces and secondary-text colors.
+- The light scheme did not explicitly define enough Material 3 contrast roles, while the screen itself still used hardcoded dark surfaces/text colors. This could make text disappear or become nearly black on dark cards.
+- The mini-player displayed a play/pause icon but the icon was not a control.
+- VK / YouTube / Spotify are not connected providers yet and must not be presented as working integrations.
+
+**Resolution**
+- MainActivity.kt: replaced hardcoded text/icon/surface colors in the affected UI paths with Material 3 color roles so Light/Dark/AMOLED/accent changes propagate consistently.
+- MainActivity.kt: made the mini-player play/pause icon an actual IconButton backed by the same PlaybackController toggle action.
+- TakuTuneTheme.kt: added explicit high-contrast Light and Dark color schemes with onBackground, onSurface, onSurfaceVariant, container and outline roles; the stored accent now drives primary/secondary/tertiary roles.
+- Dynamic Color remains opt-in and uses Android 12+ system schemes when enabled.
+- No fake VK/YouTube/Spotify login or playback implementation was added. Those integrations remain future work until real provider APIs/authentication are implemented.
+
+**Changed files and exact line ranges**
+- app/src/main/java/com/takusima/takutune/MainActivity.kt: color usage across the main UI and mini-player control; existing player/settings controls preserved.
+- app/src/main/java/com/takusima/takutune/theme/TakuTuneTheme.kt: lines 1–39 — complete Material 3 light/dark contrast scheme and accent handling.
+- README.md: appended this entry.
+
+**Build failure status**
+- No new CI compiler output is available yet for this exact block.
+
+**Unresolved**
+- VK / YouTube / Spotify integrations are intentionally not implemented.
+- GitHub Actions must validate the current source before this block is declared build-clean.
