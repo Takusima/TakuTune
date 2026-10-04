@@ -37,7 +37,6 @@ import com.takusima.takutune.theme.TakuTuneTheme
 
 private val SurfaceColor = Color(0xFF15101C)
 private val Elevated = Color(0xFF21182C)
-private val Purple = Color(0xFFB36BFF)
 private val SecondaryText = Color(0xFFAAA0B4)
 
 class MainActivity : ComponentActivity() {
@@ -158,7 +157,7 @@ private fun TakuTuneApp(
                     }
                 }
                 if (!playerOpen) {
-                    playback.current?.let { MiniPlayer(playback) { playerOpen = true } }
+                    playback.current?.let { MiniPlayer(playback, onToggle) { playerOpen = true } }
                     BottomBar(tab) { tab = it }
                 }
             }
@@ -172,7 +171,7 @@ private fun Home(tracks: List<Track>, playback: PlaybackState, favoriteIds: Set<
         item {
             Spacer(Modifier.height(24.dp))
             Text("TakuTune", color = MaterialTheme.colorScheme.onBackground, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-            Text("Твоя музыка. Твой интерфейс.", color = SecondaryText)
+            Text("Твоя музыка. Твой интерфейс.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(14.dp))
             SearchPill(search)
         }
@@ -317,10 +316,10 @@ private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Tr
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Сейчас играет", color = MaterialTheme.colorScheme.onBackground, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
-            IconButton({ favorite(track) }) { Icon(if (track.id in favorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Избранное", tint = Purple) }
+            IconButton({ favorite(track) }) { Icon(if (track.id in favorites) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "Избранное", tint = MaterialTheme.colorScheme.primary) }
         }
         Spacer(Modifier.height(20.dp))
-        Box(Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(32.dp)).background(Elevated), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(330.dp).clip(RoundedCornerShape(32.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.MusicNote, null, tint = Purple, modifier = Modifier.size(100.dp))
         }
         Spacer(Modifier.height(20.dp))
@@ -339,7 +338,7 @@ private fun FullPlayer(state: PlaybackState, favorites: Set<Long>, favorite: (Tr
 }
 
 @Composable
-private fun MiniPlayer(state: PlaybackState, open: () -> Unit) {
+private fun MiniPlayer(state: PlaybackState, toggle: () -> Unit, open: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(18.dp)).background(Elevated).clickable { open() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Default.MusicNote, null, tint = Purple, modifier = Modifier.size(30.dp))
         Spacer(Modifier.width(10.dp))
@@ -353,7 +352,7 @@ private fun MiniPlayer(state: PlaybackState, open: () -> Unit) {
 
 @Composable
 private fun TrackRow(track: Track, favorite: Boolean, onPlay: () -> Unit, onFavorite: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceColor).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(48.dp).clip(RoundedCornerShape(13.dp)).background(Elevated), contentAlignment = Alignment.Center) { Icon(Icons.Default.MusicNote, null, tint = Purple) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).clickable { onPlay() }) {
@@ -413,7 +412,7 @@ private fun SearchPill(onClick: () -> Unit) {
 @Composable
 private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
     val items = listOf(Icons.Default.Home to "Главная", Icons.Default.Search to "Поиск", Icons.Default.LibraryMusic to "Медиатека", Icons.Default.Settings to "Настройки")
-    Row(Modifier.fillMaxWidth().background(Color(0xFF0D0A12)).navigationBarsPadding().padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).navigationBarsPadding().padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
         items.forEachIndexed { index, item ->
             Column(Modifier.clickable { onSelect(index) }.padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(item.first, item.second, tint = if (selected == index) Purple else SecondaryText, modifier = Modifier.size(22.dp))
